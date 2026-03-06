@@ -1,56 +1,50 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { ArrowRightIcon } from "lucide-react";
 
 import { HeroAsciiGrid } from "@/components/hero-ascii-grid";
 import { IdenticonAvatar } from "@/components/identicon-avatar";
 import { ListEmptyState } from "@/components/list-empty-state";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { categories, siteCategories, type Category, type SavedSite, type SiteCategory } from "@/lib/site-types";
 import { cn } from "@/lib/utils";
 
-const siteCategories = [
-  "COMPONENTS",
-  "DESIGN",
-  "INSPIRATION",
-  "KNOWLEDGE",
-  "PROJECT",
-  "RESOURCES",
-  "SYSTEMS",
-] as const;
-
-type SiteCategory = (typeof siteCategories)[number];
-type Category = "ALL" | SiteCategory;
-
-const categories: Category[] = [
-  "ALL",
-  ...[...siteCategories].sort((a, b) => a.localeCompare(b, "en")),
-];
-
-type SavedSite = {
-  id: string;
-  title: string;
-  meta: string;
-  clicks: number;
-  category: SiteCategory;
+type SitesApiResponse = {
+  sites: SavedSite[];
+  source: "notion" | "unavailable";
+  syncedAt: string | null;
 };
 
-const savedSites: SavedSite[] = [
-  { id: "site-1", title: "Vercel Identicon Prototypes", meta: "avatar•generator", clicks: 142, category: "DESIGN" },
-  { id: "site-2", title: "OpenAI Playground", meta: "ai•sandbox", clicks: 188, category: "RESOURCES" },
-  { id: "site-3", title: "Awwwards", meta: "design•inspiration", clicks: 66, category: "INSPIRATION" },
-  { id: "site-4", title: "Notion Documentation", meta: "docs•knowledge", clicks: 97, category: "KNOWLEDGE" },
-  { id: "site-5", title: "Shadcn/UI Registry", meta: "ui•components", clicks: 154, category: "RESOURCES" },
-  { id: "site-5b", title: "Radix UI Primitives", meta: "components•a11y", clicks: 128, category: "COMPONENTS" },
-  { id: "site-6", title: "Linear Changelog", meta: "product•updates", clicks: 48, category: "PROJECT" },
-  { id: "site-7", title: "Anthropic Console", meta: "ai•api", clicks: 58, category: "RESOURCES" },
-  { id: "site-8", title: "Design Systems Repo", meta: "design-system•reference", clicks: 45, category: "DESIGN" },
-  { id: "site-9", title: "Mobbin UI Patterns", meta: "mobile-ui•patterns", clicks: 119, category: "INSPIRATION" },
-  { id: "site-10", title: "MDN Web Docs", meta: "web•docs", clicks: 135, category: "KNOWLEDGE" },
-  { id: "site-11", title: "React Aria", meta: "components•a11y", clicks: 87, category: "RESOURCES" },
-  { id: "site-12", title: "Arcory Internal Board", meta: "project•tracking", clicks: 36, category: "PROJECT" },
-];
+function LoadingSiteRows() {
+  return (
+    <div className="space-y-1">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div className="flex items-center gap-2 rounded-sm px-1 py-3" key={`loading-row-${index}`}>
+          <div className="h-4 w-2 animate-pulse rounded bg-muted" />
+          <div className="size-5 animate-pulse rounded-full bg-muted" />
+          <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
+            <div className="min-w-0 space-y-1">
+              <div className="h-3 w-36 animate-pulse rounded bg-muted" />
+              <div className="h-3 w-28 animate-pulse rounded bg-muted" />
+            </div>
+            <div className="h-3 w-16 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function SavedSiteRow({ site }: { site: SavedSite }) {
+  const metaTokens = site.meta
+    .split("•")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
   return (
     <div className="group flex items-center gap-2 rounded-sm px-1 py-3 text-xs transition-colors duration-150 hover:bg-muted/50">
       <div className="flex items-center justify-center text-muted-foreground transition-colors duration-150 group-hover:text-foreground">
@@ -69,7 +63,7 @@ function SavedSiteRow({ site }: { site: SavedSite }) {
         <div className="min-w-0">
           <p className="truncate text-foreground">{site.title}</p>
           <p className="truncate text-[11px] text-muted-foreground">
-            {site.meta.split("•").map((item, index) => (
+            {metaTokens.map((item, index) => (
               <span key={`${site.id}-${item}`}>
                 {index > 0 ? <span className="px-1">•</span> : null}
                 {item}
@@ -87,30 +81,85 @@ function SavedSiteRow({ site }: { site: SavedSite }) {
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<Category>("ALL");
+  const [activeSubcategory, setActiveSubcategory] = useState("ALL");
   const [keyword, setKeyword] = useState("");
+  const [sites, setSites] = useState<SavedSite[]>([]);
+  const [isLoadingSites, setIsLoadingSites] = useState(true);
   const buttonRefs = useRef<Partial<Record<Category, HTMLButtonElement | null>>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchSites = async () => {
+      setIsLoadingSites(true);
+      try {
+        const response = await fetch("/api/sites", { cache: "no-store" });
+        if (!response.ok) {
+          if (!cancelled) setSites([]);
+          return;
+        }
+        const data = (await response.json()) as SitesApiResponse;
+        if (cancelled || !Array.isArray(data.sites)) {
+          if (!cancelled) setSites([]);
+          return;
+        }
+        setSites(data.sites);
+      } catch {
+        if (!cancelled) setSites([]);
+      } finally {
+        if (!cancelled) setIsLoadingSites(false);
+      }
+    };
+
+    void fetchSites();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const subcategoriesByCategory = useMemo(() => {
+    const grouped = Object.fromEntries(
+      siteCategories.map((category) => [category, new Set<string>()]),
+    ) as Record<SiteCategory, Set<string>>;
+
+    for (const site of sites) {
+      if (site.subcategory) {
+        grouped[site.category].add(site.subcategory.trim().toUpperCase());
+      }
+    }
+
+    return Object.fromEntries(
+      siteCategories.map((category) => {
+        const dynamic = Array.from(grouped[category]).sort((a, b) => a.localeCompare(b, "en"));
+        return [category, dynamic];
+      }),
+    ) as Record<SiteCategory, string[]>;
+  }, [sites]);
 
   const categoryCounts = useMemo(() => {
     const counts = Object.fromEntries(categories.map((category) => [category, 0])) as Record<Category, number>;
-    counts.ALL = savedSites.length;
+    counts.ALL = sites.length;
 
-    for (const site of savedSites) {
+    for (const site of sites) {
       counts[site.category] += 1;
     }
 
     return counts;
-  }, []);
+  }, [sites]);
 
   const filteredSites = useMemo(() => {
     const searchValue = keyword.trim().toLowerCase();
 
-    return savedSites.filter((site) => {
+    return sites.filter((site) => {
       const categoryMatched = activeCategory === "ALL" || site.category === activeCategory;
+      const subcategoryMatched =
+        activeSubcategory === "ALL" || site.subcategory?.trim().toUpperCase() === activeSubcategory;
       const keywordMatched = !searchValue || site.title.toLowerCase().includes(searchValue);
 
-      return categoryMatched && keywordMatched;
+      return categoryMatched && subcategoryMatched && keywordMatched;
     });
-  }, [activeCategory, keyword]);
+  }, [activeCategory, activeSubcategory, keyword, sites]);
 
   const switchCategoryByArrow = (current: Category, direction: 1 | -1) => {
     const currentIndex = categories.indexOf(current);
@@ -119,24 +168,39 @@ export default function Home() {
     const nextIndex = (currentIndex + direction + categories.length) % categories.length;
     const nextCategory = categories[nextIndex];
 
+    setActiveSubcategory("ALL");
     setActiveCategory(nextCategory);
     buttonRefs.current[nextCategory]?.focus();
   };
 
   const isCategoryEmpty =
-    activeCategory !== "ALL" && categoryCounts[activeCategory] === 0 && keyword.trim().length === 0;
+    !isLoadingSites && activeCategory !== "ALL" && categoryCounts[activeCategory] === 0 && keyword.trim().length === 0;
 
   return (
-    <div className="min-h-[100dvh] bg-background px-4 py-12 sm:px-[70px]">
-      <main className="mx-auto flex min-h-[100dvh] w-full max-w-[768px] flex-col bg-card px-6 py-10 sm:px-16 sm:py-16">
+    <main className="min-h-[100dvh] bg-background">
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[768px] flex-col bg-card px-6 pt-9 pb-10 sm:px-16 sm:pt-9 sm:pb-16">
         <header className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-1.5 text-foreground">
-            <span className="text-[10px]">▲</span>
-            <span>Arcory</span>
+          <Link className="flex items-center gap-1.5 text-foreground transition-colors hover:text-foreground/80" href="/">
+            <IdenticonAvatar
+              className="size-4"
+              monoChroma={0}
+              monoLightnessHigh={0.84}
+              monoLightnessLow={0.12}
+              seed="arcory-logo"
+              size={16}
+              variant="bayer-4x4-mono-oklch"
+            />
+            <span className="text-[16px] leading-none">Arcory</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <a className="text-foreground" href="#">
+              About
+            </a>
+            <ThemeToggle />
+            <Button aria-label="Submit" size="icon" type="button" variant="outline">
+              <ArrowRightIcon />
+            </Button>
           </div>
-          <a className="text-foreground" href="#">
-            About
-          </a>
         </header>
 
         <section className="mt-12 flex justify-center">
@@ -144,55 +208,100 @@ export default function Home() {
         </section>
 
         <section className="mt-9">
-          <div
-            aria-label="Site categories"
-            className="flex flex-wrap items-center gap-2 text-[13px] text-foreground"
-            role="tablist"
-          >
-            {categories.map((category) => (
-              <button
-                aria-selected={activeCategory === category}
-                className={cn(
-                  "rounded-sm px-1.5 py-1 leading-none transition-colors duration-150",
-                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                  "text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80 active:text-foreground",
-                  activeCategory === category &&
-                    "bg-foreground text-background hover:bg-foreground/90 hover:text-background active:text-background",
-                )}
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                onKeyDown={(event) => {
-                  if (event.key === "ArrowRight") {
-                    event.preventDefault();
-                    switchCategoryByArrow(category, 1);
-                  }
+          <div className="sticky top-0 z-20 -mx-1 bg-card/95 px-1 pt-2 pb-2 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+            <div
+              aria-label="Site categories"
+              className="flex flex-wrap items-center gap-2 text-[13px] text-foreground"
+              role="tablist"
+            >
+              {categories.map((category) => (
+                <button
+                  aria-selected={activeCategory === category}
+                  className={cn(
+                    "rounded-none px-1.5 py-1 leading-none transition-colors duration-150",
+                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                    "text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80 active:text-foreground",
+                    activeCategory === category &&
+                      "bg-foreground text-background hover:bg-foreground/90 hover:text-background active:text-background",
+                  )}
+                  key={category}
+                  onClick={() => {
+                    setActiveSubcategory("ALL");
+                    setActiveCategory(category);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "ArrowRight") {
+                      event.preventDefault();
+                      switchCategoryByArrow(category, 1);
+                    }
 
-                  if (event.key === "ArrowLeft") {
-                    event.preventDefault();
-                    switchCategoryByArrow(category, -1);
-                  }
-                }}
-                ref={(node) => {
-                  buttonRefs.current[category] = node;
-                }}
-                role="tab"
-                type="button"
-              >
-                {category}
-              </button>
-            ))}
+                    if (event.key === "ArrowLeft") {
+                      event.preventDefault();
+                      switchCategoryByArrow(category, -1);
+                    }
+                  }}
+                  ref={(node) => {
+                    buttonRefs.current[category] = node;
+                  }}
+                  role="tab"
+                  type="button"
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
+            {activeCategory !== "ALL" ? (
+              <div aria-label={`${activeCategory} subcategories`} className="no-scrollbar mt-2 overflow-x-auto">
+                <div className="inline-flex items-center gap-2 whitespace-nowrap bg-muted px-1 py-1">
+                  <button
+                    aria-pressed={activeSubcategory === "ALL"}
+                    className={cn(
+                      "rounded-none px-1.5 py-1 text-[11px] leading-none transition-colors duration-150",
+                      "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                      "text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80 active:text-foreground",
+                      activeSubcategory === "ALL" &&
+                        "bg-foreground text-background hover:bg-foreground/90 hover:text-background active:text-background",
+                    )}
+                    onClick={() => setActiveSubcategory("ALL")}
+                    type="button"
+                  >
+                    ALL
+                  </button>
+                  {subcategoriesByCategory[activeCategory].map((subcategory) => (
+                    <button
+                      aria-pressed={activeSubcategory === subcategory}
+                      className={cn(
+                        "rounded-none px-1.5 py-1 text-[11px] leading-none transition-colors duration-150",
+                        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                        "text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80 active:text-foreground",
+                        activeSubcategory === subcategory &&
+                          "bg-foreground text-background hover:bg-foreground/90 hover:text-background active:text-background",
+                      )}
+                      key={subcategory}
+                      onClick={() => setActiveSubcategory(subcategory)}
+                      type="button"
+                    >
+                      {subcategory}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <Input
+              aria-label="Search saved websites"
+              className="mt-3 mb-1 h-8 rounded-none border-input bg-transparent px-2 text-xs shadow-none focus-visible:ring-0"
+              placeholder="Search"
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+            />
           </div>
 
-          <Input
-            aria-label="Search saved websites"
-            className="mt-3 mb-1 h-8 rounded-none border-input bg-transparent px-2 text-xs shadow-none focus-visible:ring-0"
-            placeholder="Search"
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-          />
-
           <div className="mt-1">
-            {isCategoryEmpty ? (
+            {isLoadingSites ? (
+              <LoadingSiteRows />
+            ) : isCategoryEmpty ? (
               <ListEmptyState category={activeCategory} mode="category" />
             ) : filteredSites.length > 0 ? (
               filteredSites.map((site) => <SavedSiteRow key={site.id} site={site} />)
@@ -202,7 +311,7 @@ export default function Home() {
           </div>
 
           <div className="py-4 text-center text-xs uppercase tracking-[0.06em] text-foreground">
-            {filteredSites.length} Saves
+            {isLoadingSites ? "Loading..." : `${filteredSites.length} Saves`}
           </div>
         </section>
 
@@ -213,7 +322,7 @@ export default function Home() {
             <div className="h-px flex-1 bg-border" />
           </div>
         </footer>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

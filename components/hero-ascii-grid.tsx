@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { TextScramble } from "@/components/text-scramble";
+
 /**
  * HeroAsciiGrid（动态 ASCII 背景）使用说明
  *
@@ -189,8 +191,12 @@ export function HeroAsciiGrid() {
             height: `${GRID_ROW_HEIGHT * 3 + GRID_ROW_GAP * 2}px`,
           }}
         >
-          <p className="text-[14px] font-medium text-foreground">Collect. Explore. Create.</p>
-          <p className="text-[12px] text-muted-foreground">Atlas</p>
+          <TextScramble
+            className="text-[14px] font-medium text-foreground"
+            replayOnReenter
+            text="Collect. Explore. Create."
+          />
+          <TextScramble className="text-[12px] text-muted-foreground" replayOnReenter startDelayMs={200} text="Atlas" />
         </div>
       </div>
     </div>

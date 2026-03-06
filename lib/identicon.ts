@@ -29,6 +29,20 @@
  *   - 前景/背景共用同一 hue
  *   - 通过 L 高低形成层次
  *   - C 控制整体“彩度强弱”（可通过 monoChroma 调整）
+ *
+ * 4) 导出函数与职责
+ * - createIdenticonDataUrl:
+ *   - 通用头像生成入口（方形像素图）
+ *   - 支持 Bayer 2x2 / Bayer 4x4 / HSL Triadic / OKLCH Mono
+ * - createIdenticonTriangleDataUrl:
+ *   - 通用三角裁切版本（同一套 Bayer 逻辑）
+ * - createChromaticAberrationTriangleDataUrl:
+ *   - 顶部 logo 的“色差风格”三角算法（R/G/B 偏移叠层）
+ *
+ * 5) 组件调用关系
+ * - IdenticonAvatar 只调用 createIdenticonDataUrl（列表头像）
+ * - 顶部 Arcory logo 只调用 createChromaticAberrationTriangleDataUrl
+ * - 两者参数与渲染互相独立，修改 logo 不会影响头像
  */
 const BAYER_2X2 = [
   [0, 2],
@@ -214,6 +228,67 @@ function renderBayer(
 }
 
 export function createIdenticonDataUrl(seed: string, options: IdenticonOptions = {}) {
+  return createIdenticonShapeDataUrl(seed, options, "square");
+}
+
+export function createIdenticonTriangleDataUrl(seed: string, options: IdenticonOptions = {}) {
+  return createIdenticonShapeDataUrl(seed, options, "triangle");
+}
+
+/**
+ * Chromatic Aberration（三角版）
+ * 参考 identicon-prototype 的思路：
+ * - R/G/B 三层同形状偏移
+ * - 使用 screen 叠加
+ * - 形成棱彩/故障感
+ */
+export function createChromaticAberrationTriangleDataUrl(seed: string, size = 48) {
+  const hash = hashString(seed);
+  const random = mulberry32(hash[0]);
+  const center = size / 2;
+  const shapeR = size * 0.38;
+  const spread = Math.max(1.8, size / 18);
+  const tinyJitter = () => (random() - 0.5) * 0.35;
+  const points = (cx: number, cy: number, radius: number) => {
+    const top = `${Math.round(cx)},${Math.round(cy - radius)}`;
+    const right = `${Math.round(cx + radius * 0.87)},${Math.round(cy + radius * 0.5)}`;
+    const left = `${Math.round(cx - radius * 0.87)},${Math.round(cy + radius * 0.5)}`;
+    return `${top} ${right} ${left}`;
+  };
+
+  const shadow = {
+    x: spread * (0.5 + random() * 0.18),
+    y: spread * (0.45 + random() * 0.2),
+  };
+  const red = {
+    x: -spread * (0.72 + random() * 0.12),
+    y: -spread * (0.28 + random() * 0.18),
+  };
+  const green = {
+    x: spread * (0.72 + random() * 0.12),
+    y: -spread * (0.28 + random() * 0.18),
+  };
+  const blue = {
+    x: spread * (0.02 + random() * 0.16),
+    y: spread * (0.78 + random() * 0.22),
+  };
+
+  const layers = [
+    `<polygon points='${points(center + shadow.x, center + shadow.y, shapeR)}' fill='#101218' fill-opacity='0.38' />`,
+    `<polygon points='${points(center + red.x + tinyJitter(), center + red.y + tinyJitter(), shapeR)}' fill='#b9894a' fill-opacity='0.9' />`,
+    `<polygon points='${points(center + green.x + tinyJitter(), center + green.y + tinyJitter(), shapeR)}' fill='#7f8edb' fill-opacity='0.9' />`,
+    `<polygon points='${points(center + blue.x + tinyJitter(), center + blue.y + tinyJitter(), shapeR)}' fill='#59b7a7' fill-opacity='0.9' />`,
+  ].join("");
+
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' shape-rendering='crispEdges' viewBox='0 0 ${size} ${size}' width='${size}' height='${size}'>${layers}</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function createIdenticonShapeDataUrl(
+  seed: string,
+  options: IdenticonOptions,
+  shape: "square" | "triangle",
+) {
   const variant = options.variant ?? "bayer-4x4-mono-oklch";
   const size = options.size ?? 32;
   const colorScheme = options.colorScheme ?? "oklch-mono";
@@ -233,7 +308,11 @@ export function createIdenticonDataUrl(seed: string, options: IdenticonOptions =
 
   const matrix = variant === "bayer-2x2" ? BAYER_2X2 : BAYER_4X4;
   const pixelRects = renderBayer(size, matrix, angle, colorA, colorB);
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' shape-rendering='crispEdges' viewBox='0 0 ${size} ${size}' width='${size}' height='${size}'>${pixelRects}</svg>`;
+  const svgBody =
+    shape === "triangle"
+      ? `<defs><clipPath id='triangle-clip'><polygon points='${size / 2},0 ${size},${size} 0,${size}'/></clipPath></defs><g clip-path='url(#triangle-clip)'>${pixelRects}</g>`
+      : pixelRects;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' shape-rendering='crispEdges' viewBox='0 0 ${size} ${size}' width='${size}' height='${size}'>${svgBody}</svg>`;
 
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
