@@ -39,32 +39,57 @@ export default function AboutPage() {
         </header>
 
         <section className="mt-10 space-y-4">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">About Arcory</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">About</p>
           <AboutCosmosAnimation />
-        </section>
+          <div className="pt-1">
+            <div className="flex items-center justify-between border-b border-border/60 pb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+              <p>Arcory // v0.1</p>
+              <p>Human + AI</p>
+            </div>
 
-        <section className="mt-10 space-y-4">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Project Notes</p>
-          <div className="space-y-3 text-sm leading-6 text-foreground">
-            <p>
-              Arcory 是一个面向创作者与开发者的收藏入口：聚合网站、文章、插件、案例，并提供结构化筛选与快速检索。
-            </p>
-            <p>
-              这个版本最特别的地方是，它来自你和 AI 的第一次协作落地。
-              从 0 到 1 的项目初始化、界面迭代、数据接入、分类策略和交互动效，都在同一个工程里连续完成。
-            </p>
-            <p className="text-muted-foreground">
-              目标不是做“展示页”，而是做一个可持续维护、可持续增长的个人数字资产工作台。
-            </p>
+            <div className="mt-9 flex gap-4">
+              <div aria-hidden className="h-[600px] w-px shrink-0 bg-border" />
+
+              <div className="space-y-6">
+                <div className="space-y-2 font-mono text-[16px] leading-7 tracking-[0.01em] text-foreground">
+                  <p>Collect.</p>
+                  <p>Explore.</p>
+                  <p>Create.</p>
+                </div>
+
+                <div className="space-y-4 font-mono text-[13px] leading-7 text-foreground">
+                  <div>
+                      <p className="text-muted-foreground">&gt; collect</p>
+                      <p>Place inspiration on one continuous timeline.</p>
+                  </div>
+
+                  <div>
+                      <p className="text-muted-foreground">&gt; explore</p>
+                      <p>Turn links into coordinates you can revisit.</p>
+                  </div>
+
+                  <div>
+                      <p className="text-muted-foreground">&gt; create</p>
+                      <p>Archive tools into sparks you can reignite.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 font-mono text-[13px] leading-7 text-foreground">
+                  <p>Built with AI, tuned by human taste.</p>
+                  <p>Arcory, from 0 to 1, is ignition, not arrival.</p>
+                </div>
+
+                <p className="font-mono text-[13px] uppercase tracking-[0.12em] text-foreground">
+                  Arcory is a living archive.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="mt-10 space-y-4">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Portrait</p>
+        <section className="mt-[80px] space-y-4">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">GALLERY</p>
           <AboutPortrait className="w-full" />
-          <p className="text-xs text-muted-foreground">
-            使用 Web 压缩图（portrait.webp）展示人像，未找到图片时会自动回退到程序化像素版本。
-          </p>
         </section>
 
         <footer className="mt-auto pt-10">
