@@ -12,8 +12,15 @@ const SCREENSHOT_NAME_PATTERN = /(screenshot|screenshoot|preview|thumbnail|thumb
 const CACHE_TTL_MS = Number.parseInt(process.env.NOTION_SCREENSHOT_PROXY_CACHE_MS ?? "", 10) || 30 * 60 * 1000;
 const VALIDATE_INTERVAL_MS =
   Number.parseInt(process.env.NOTION_SCREENSHOT_PROXY_VALIDATE_MS ?? "", 10) || 60 * 1000;
+const WEBP_MAX_WIDTH =
+  Number.parseInt(process.env.NOTION_SCREENSHOT_PROXY_MAX_WIDTH ?? "", 10) || 640;
+const WEBP_QUALITY =
+  Number.parseInt(process.env.NOTION_SCREENSHOT_PROXY_WEBP_QUALITY ?? "", 10) || 48;
+const WEBP_EFFORT =
+  Number.parseInt(process.env.NOTION_SCREENSHOT_PROXY_WEBP_EFFORT ?? "", 10) || 6;
 const CACHE_DIR = path.join(process.cwd(), "data", "screenshot-cache");
 const CACHE_INDEX_FILE = path.join(CACHE_DIR, "index.json");
+const PUBLIC_CACHE_DIR = path.join(process.cwd(), "public", "screenshot-cache");
 
 type NotionRichText = {
   plain_text?: string;
@@ -156,6 +163,17 @@ async function readCachedFile(entry: CacheEntry) {
   }
 }
 
+async function readPublicCachedFile(pageId: string) {
+  const fileName = `${sanitizePageId(pageId)}.webp`;
+  const filePath = path.join(PUBLIC_CACHE_DIR, fileName);
+  try {
+    await access(filePath);
+    return await readFile(filePath);
+  } catch {
+    return null;
+  }
+}
+
 async function writeCachedFile(fileName: string, data: Buffer) {
   const filePath = path.join(CACHE_DIR, fileName);
   await ensureCacheDir();
@@ -185,11 +203,16 @@ async function fetchAndCompressScreenshot(sourceUrl: string) {
   const compressed = await sharp(Buffer.from(arrayBuffer))
     .rotate()
     .resize({
-      width: 1280,
+      width: WEBP_MAX_WIDTH,
       withoutEnlargement: true,
       fit: "inside",
     })
-    .webp({ quality: 72, effort: 4 })
+    .webp({
+      quality: WEBP_QUALITY,
+      effort: WEBP_EFFORT,
+      smartSubsample: true,
+      alphaQuality: 80,
+    })
     .toBuffer();
 
   return {
@@ -280,8 +303,24 @@ export async function GET(request: Request) {
   const pageId = searchParams.get("pageId")?.trim() ?? "";
   const token = process.env.NOTION_TOKEN || process.env.NOTION_API_KEY;
 
-  if (!pageId || !token) {
-    return NextResponse.json({ error: "missing-page-id-or-notion-token" }, { status: 400 });
+  if (!pageId) {
+    return NextResponse.json({ error: "missing-page-id" }, { status: 400 });
+  }
+
+  const publicCachedFile = await readPublicCachedFile(pageId);
+  if (publicCachedFile) {
+    return new NextResponse(toBlobFromBuffer(publicCachedFile, "image/webp"), {
+      status: 200,
+      headers: {
+        "Content-Type": "image/webp",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Arcory-Cache": "HIT-PUBLIC",
+      },
+    });
+  }
+
+  if (!token) {
+    return NextResponse.json({ error: "missing-notion-token" }, { status: 400 });
   }
 
   const cached = await getCachedEntry(pageId);
@@ -294,7 +333,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": cached.entry.contentType,
-        "Cache-Control": "public, max-age=60",
+        "Cache-Control": "public, max-age=600, stale-while-revalidate=86400",
         "X-Arcory-Cache": "HIT-DISK",
       },
     });
@@ -322,7 +361,7 @@ export async function GET(request: Request) {
     status: 200,
     headers: {
       "Content-Type": loaded.contentType,
-      "Cache-Control": "public, max-age=60",
+      "Cache-Control": "public, max-age=600, stale-while-revalidate=86400",
       "X-Arcory-Cache": "MISS-DISK",
     },
   });

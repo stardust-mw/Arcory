@@ -97,6 +97,10 @@ NOTION_SYNC_SECRET=your-secret
 # 默认 30 分钟缓存、1 分钟后台校验 Notion 是否有新图
 NOTION_SCREENSHOT_PROXY_CACHE_MS=1800000
 NOTION_SCREENSHOT_PROXY_VALIDATE_MS=60000
+# 可选：截图压缩参数（默认更偏向小体积）
+NOTION_SCREENSHOT_PROXY_MAX_WIDTH=640
+NOTION_SCREENSHOT_PROXY_WEBP_QUALITY=48
+NOTION_SCREENSHOT_PROXY_WEBP_EFFORT=6
 ```
 
 ### 2) API 能力
@@ -160,10 +164,28 @@ NOTION_SCREENSHOT_PROXY_VALIDATE_MS=60000
   - 有图：展示截图
   - 无图或加载失败：显示 `Pending`
 - 通过 `/api/notion/screenshot` 做服务端代理与压缩缓存：
+  - 优先读取 `public/screenshot-cache/<pageId>.webp`（静态版，生产最稳定）
   - 首次请求：拉取 Notion 图片并压缩为 `webp`
   - 写入磁盘缓存目录：`data/screenshot-cache/`
   - 后续请求：直接读取磁盘缓存
   - 后台自动检查 Notion 是否换图，换图后自动刷新缓存
+
+#### 截图静态化（推荐用于 Vercel）
+
+- 目标：把已压缩缓存“固化”为可部署静态文件，避免无状态环境丢缓存。
+- 命令：
+
+```bash
+pnpm screenshots:promote
+```
+
+- 行为：
+  - 将 `data/screenshot-cache/*.webp` 复制到 `public/screenshot-cache/`
+  - 生产环境优先使用 `public` 静态截图
+- 你在 Notion 新增/替换截图后：
+  1. 本地触发一次预览（让代理拉取并压缩最新图）
+  2. 再执行 `pnpm screenshots:promote`
+  3. 提交并部署
 
 #### 分类固定（确认后）
 

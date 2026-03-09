@@ -39,6 +39,8 @@ const BACKGROUND_SITES_LIMIT = 48;
 const SITES_CACHE_KEY = "arcory-sites-cache-v1";
 const LIST_BOOT_DELAY_MS = 240;
 const LIST_REVEAL_DELAY_MS = 520;
+const PREVIEW_PRELOAD_COUNT = 12;
+const PREVIEW_PRELOAD_DELAY_MS = 180;
 
 function normalizeSiteUrl(value?: string) {
   if (!value) return "";
@@ -156,9 +158,7 @@ function buildHoverPreviewItem(site: SavedSite): HoverPreviewItem | null {
   if (!normalizedUrl) return null;
 
   const notionScreenshotProxy =
-    site.source === "notion"
-      ? `/api/notion/screenshot?pageId=${encodeURIComponent(site.id)}`
-      : undefined;
+    site.source === "notion" ? `/api/notion/screenshot?pageId=${encodeURIComponent(site.id)}` : undefined;
 
   return {
     id: site.id,
@@ -166,7 +166,8 @@ function buildHoverPreviewItem(site: SavedSite): HoverPreviewItem | null {
     url: normalizedUrl,
     host: getSiteHost(normalizedUrl),
     meta: site.meta,
-    screenshotUrl: notionScreenshotProxy || normalizeSiteUrl(site.screenshot) || undefined,
+    // Notion items must always use server-side compressed cache instead of direct image URL.
+    screenshotUrl: site.source === "notion" ? notionScreenshotProxy : normalizeSiteUrl(site.screenshot) || undefined,
   };
 }
 
@@ -337,6 +338,7 @@ export default function Home() {
   const [isListUiVisible, setIsListUiVisible] = useState(false);
   const [activePreview, setActivePreview] = useState<HoverPreviewItem | null>(null);
   const buttonRefs = useRef<Partial<Record<Category, HTMLButtonElement | null>>>({});
+  const previewPrefetchingRef = useRef(new Set<string>());
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -540,6 +542,41 @@ export default function Home() {
       setActivePreview(null);
     }
   }, [activePreview, filteredSites]);
+
+  useEffect(() => {
+    if (!isListUiVisible || sites.length === 0) return;
+    if (activePreview) return;
+
+    const candidates = sites
+      .slice(0, PREVIEW_PRELOAD_COUNT)
+      .map((site) => buildHoverPreviewItem(site)?.screenshotUrl ?? "")
+      .filter(Boolean);
+
+    if (candidates.length === 0) return;
+
+    const timerId = window.setTimeout(() => {
+      for (const url of candidates) {
+        if (screenshotStatusCache.get(url) === "ready") continue;
+        if (previewPrefetchingRef.current.has(url)) continue;
+
+        previewPrefetchingRef.current.add(url);
+        const image = new window.Image();
+        image.decoding = "async";
+        image.onload = () => {
+          screenshotStatusCache.set(url, "ready");
+          previewPrefetchingRef.current.delete(url);
+        };
+        image.onerror = () => {
+          previewPrefetchingRef.current.delete(url);
+        };
+        image.src = url;
+      }
+    }, PREVIEW_PRELOAD_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [activePreview, isListUiVisible, sites]);
 
   const switchCategoryByArrow = (current: Category, direction: 1 | -1) => {
     const currentIndex = categories.indexOf(current);
