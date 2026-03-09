@@ -71,8 +71,8 @@ function buildFaviconCandidates(host: string) {
 
   return [
     `https://${host}/favicon.ico`,
-    `https://icons.duckduckgo.com/ip3/${encodeURIComponent(host)}.ico`,
-    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`,
+    `https://${host}/favicon.png`,
+    `https://${host}/apple-touch-icon.png`,
   ];
 }
 
@@ -252,7 +252,15 @@ function LoadingSiteRows() {
       {Array.from({ length: 8 }).map((_, index) => (
         <div className="flex items-center gap-2 rounded-sm px-1 py-3" key={`loading-row-${index}`}>
           <div className="h-4 w-2 animate-pulse rounded bg-muted" />
-          <div className="size-5 animate-pulse rounded-full bg-muted" />
+          <IdenticonAvatar
+            alt=""
+            className="size-5 opacity-70"
+            monoChroma={0.08}
+            monoLightnessHigh={0.8}
+            monoLightnessLow={0.35}
+            seed={`loading-site-${index}`}
+            size={20}
+          />
           <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
             <div className="min-w-0 space-y-1">
               <div className="h-3 w-36 animate-pulse rounded bg-muted" />
@@ -595,7 +603,7 @@ export default function Home() {
 
   return (
     <main className="min-h-[100dvh] bg-background">
-      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[768px] flex-col bg-card px-6 pt-9 pb-10 sm:px-16 sm:pt-9 sm:pb-16">
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[768px] flex-col bg-card px-4 pt-8 pb-8 sm:px-16 sm:pt-9 sm:pb-16">
         <header className="flex items-center justify-between text-sm">
           <Link className="flex items-center gap-1.5 text-foreground transition-colors hover:text-foreground/80" href="/">
             <IdenticonAvatar
@@ -620,11 +628,11 @@ export default function Home() {
           </div>
         </header>
 
-        <section className="mt-12 flex justify-center">
+        <section className="mt-10 flex justify-center sm:mt-12">
           <HeroAsciiGrid />
         </section>
 
-        <section className="mt-9">
+        <section className="mt-8 sm:mt-9">
           {isListUiVisible ? (
             <>
           <div className="sticky top-0 z-20 -mx-1 bg-card/95 px-1 pt-2 pb-2 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -637,7 +645,7 @@ export default function Home() {
                 <button
                   aria-selected={activeCategory === category}
                   className={cn(
-                    "rounded-none px-1.5 py-1 leading-none transition-colors duration-150",
+                    "cursor-pointer rounded-none px-1.5 py-1 leading-none transition-colors duration-150",
                     "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
                     "text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80 active:text-foreground",
                     activeCategory === category &&
@@ -677,7 +685,7 @@ export default function Home() {
                     <button
                       aria-pressed={activeSubcategory === subcategory}
                       className={cn(
-                        "rounded-none px-1.5 py-1 text-[11px] leading-none transition-colors duration-150",
+                        "cursor-pointer rounded-none px-1.5 py-1 text-[11px] leading-none transition-colors duration-150",
                         "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
                         "text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80 active:text-foreground",
                         activeSubcategory === subcategory &&
@@ -737,7 +745,7 @@ export default function Home() {
         </section>
 
         <footer className="mt-auto">
-          <div className="flex items-center gap-4 pt-9 pb-0">
+          <div className="flex items-center gap-4 pt-8 pb-0 sm:pt-9">
             <div className="h-px flex-1 bg-border" />
             <p className="text-xs uppercase tracking-[0.06em] text-foreground">Archive + story</p>
             <div className="h-px flex-1 bg-border" />

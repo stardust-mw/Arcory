@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AboutCosmosLazy } from "@/components/about-cosmos-lazy";
-import { AboutPortraitLazy } from "@/components/about-portrait-lazy";
+import { AboutGalaxyGrid } from "@/components/about-galaxy-grid";
 import { IdenticonAvatar } from "@/components/identicon-avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -44,9 +44,9 @@ export default function AboutPage() {
             </div>
 
             <div className="mt-9 flex gap-4">
-              <div aria-hidden className="h-[600px] w-px shrink-0 bg-border" />
+              <div aria-hidden className="hidden h-[420px] w-px shrink-0 bg-border sm:block sm:h-[600px]" />
 
-              <div className="flex min-h-[600px] flex-col">
+              <div className="flex min-h-[420px] flex-col sm:min-h-[600px]">
                 <div className="space-y-6">
                   <div className="space-y-2 font-mono text-[16px] leading-7 tracking-[0.01em] text-foreground">
                     <p>Collect.</p>
@@ -111,9 +111,9 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="mt-[80px] space-y-4">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">GALLERY</p>
-          <AboutPortraitLazy className="w-full" />
+        <section className="mt-12 mb-10 space-y-4 sm:mt-20 sm:mb-16">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">GALAXY</p>
+          <AboutGalaxyGrid className="w-full" />
         </section>
 
         <footer className="mt-auto pt-10">
