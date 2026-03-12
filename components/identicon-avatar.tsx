@@ -28,6 +28,7 @@ export function IdenticonAvatar({
 }: IdenticonAvatarProps) {
   const src = createIdenticonDataUrl(seed, {
     variant,
+    size,
     colorScheme,
     monoChroma,
     monoLightnessHigh,

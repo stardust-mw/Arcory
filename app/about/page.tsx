@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 export default function AboutPage() {
   return (
     <main className="min-h-[100dvh] bg-background">
-      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[768px] flex-col bg-card px-6 pt-9 pb-10 sm:px-16 sm:pt-9 sm:pb-16">
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-[768px] flex-col bg-card px-4 pt-8 pb-8 sm:px-16 sm:pt-9 sm:pb-16">
         <header className="flex items-center justify-between text-sm">
           <Link className="flex items-center gap-1.5 text-foreground transition-colors hover:text-foreground/80" href="/">
             <IdenticonAvatar
@@ -116,8 +116,8 @@ export default function AboutPage() {
           <AboutGalaxyGrid className="w-full" />
         </section>
 
-        <footer className="mt-auto pt-10">
-          <div className="flex items-center gap-4 pt-0 pb-0">
+        <footer className="mt-auto">
+          <div className="flex items-center gap-4 pt-8 pb-0 sm:pt-9">
             <div className="h-px flex-1 bg-border" />
             <p className="text-xs uppercase tracking-[0.06em] text-foreground">Archive + story</p>
             <div className="h-px flex-1 bg-border" />
